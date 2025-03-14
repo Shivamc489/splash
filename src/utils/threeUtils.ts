@@ -34,7 +34,14 @@ export const createRenderer = (container: HTMLDivElement): THREE.WebGLRenderer =
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   
+  // Clear any existing canvas before adding new one
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+  
   container.appendChild(renderer.domElement);
+  
+  console.log("Renderer created and added to container");
   
   return renderer;
 };

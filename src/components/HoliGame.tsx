@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createScene, createCamera, createRenderer } from '../utils/threeUtils';
@@ -18,9 +19,10 @@ const HoliGame: React.FC = () => {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const npcsRef = useRef<NPC[]>([]);
   const waterGunRef = useRef<THREE.Group | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (isLoading || !containerRef.current) return;
     
     // Initialize Three.js components
     const { scene, camera, renderer } = initThreeJS();
@@ -30,7 +32,7 @@ const HoliGame: React.FC = () => {
     
     // Start animation loop
     const animate = () => {
-      requestAnimationFrame(animate);
+      animationFrameRef.current = requestAnimationFrame(animate);
       updateGame();
       renderer.render(scene, camera);
     };
@@ -43,8 +45,15 @@ const HoliGame: React.FC = () => {
         rendererRef.current.dispose();
         containerRef.current?.removeChild(rendererRef.current.domElement);
       }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      
+      // Remove event listeners
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('click', handleShoot);
     };
-  }, []);
+  }, [isLoading]); // Re-run when isLoading changes
   
   const handleLoadingComplete = () => {
     console.log("Loading complete!");
@@ -52,9 +61,13 @@ const HoliGame: React.FC = () => {
   };
   
   const initThreeJS = () => {
+    if (!containerRef.current) {
+      throw new Error("Container ref is not available");
+    }
+    
     const scene = createScene();
     const camera = createCamera();
-    const renderer = createRenderer(containerRef.current!);
+    const renderer = createRenderer(containerRef.current);
     
     sceneRef.current = scene;
     cameraRef.current = camera;
