@@ -56,6 +56,11 @@ const GameUI: React.FC<GameUIProps> = ({
               <div className="text-white font-medium w-12">{waterLevel}%</div>
             </div>
           </div>
+          
+          {/* Game status indicator - added to help debug */}
+          <div className="absolute top-4 right-4 p-2 rounded-lg backdrop-blur-md bg-white/10 border border-white/20">
+            <p className="text-sm font-medium text-white">Game Running</p>
+          </div>
         </>
       )}
     </div>

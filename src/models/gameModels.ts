@@ -8,14 +8,54 @@ export class NPC {
   isColored: boolean = false;
   moveDirection: THREE.Vector3 = new THREE.Vector3();
   moveSpeed: number = 0.02;
+  raycaster: THREE.Raycaster = new THREE.Raycaster();
   
   constructor(scene: THREE.Scene) {
+    console.log("Creating new NPC");
     this.scene = scene;
-    this.createModel();
-    this.setRandomDirection();
+    try {
+      this.createModel();
+      this.setRandomDirection();
+      
+      // Initialize raycaster for terrain height detection
+      this.raycaster = new THREE.Raycaster();
+      this.raycaster.ray.direction.set(0, -1, 0); // Point downward
+      console.log("NPC created successfully");
+    } catch (error) {
+      console.error("Error creating NPC:", error);
+      // Create a simple fallback model if the regular model fails
+      this.createFallbackModel();
+    }
+  }
+  
+  // Create a simple fallback model if the regular model fails
+  createFallbackModel(): void {
+    try {
+      console.log("Creating fallback NPC model");
+      this.model = new THREE.Group();
+      
+      // Simple box for the body
+      const bodyGeometry = new THREE.BoxGeometry(0.5, 1.5, 0.5);
+      const bodyMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xff5555,
+      });
+      
+      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      body.position.y = 0.75;
+      body.castShadow = true;
+      this.model.add(body);
+      
+      // Add to scene
+      this.scene.add(this.model);
+      console.log("Fallback NPC model created");
+    } catch (error) {
+      console.error("Failed to create fallback NPC model:", error);
+      // Keep model as null
+    }
   }
   
   createModel(): void {
+    console.log("Creating detailed NPC model");
     this.model = new THREE.Group();
     
     // Array of skin tones (ranging from lighter to darker)
@@ -121,6 +161,9 @@ export class NPC {
     this.position.set(x, y, z);
     if (this.model) {
       this.model.position.copy(this.position);
+      
+      // Adjust to terrain height if available
+      this.adjustToTerrainHeight();
     }
   }
   
@@ -132,17 +175,93 @@ export class NPC {
     ).normalize();
   }
   
+  // Adjust NPC position to match terrain height
+  adjustToTerrainHeight(): void {
+    if (!this.model) return;
+    
+    // Set raycaster position above the NPC
+    this.raycaster.ray.origin.set(
+      this.position.x,
+      10, // Start from high above
+      this.position.z
+    );
+    
+    // Find ground objects to check for height
+    const groundObjects = this.scene.children.filter(child => 
+      child instanceof THREE.Mesh && 
+      child.geometry instanceof THREE.PlaneGeometry
+    );
+    
+    // Cast ray downward to find terrain height
+    const intersects = this.raycaster.intersectObjects(groundObjects);
+    
+    if (intersects.length > 0) {
+      // Get the y-position of the first intersection
+      const terrainHeight = intersects[0].point.y;
+      
+      // Set NPC y-position to terrain height
+      this.position.y = terrainHeight;
+      this.model.position.y = terrainHeight;
+    }
+  }
+  
   update(): void {
     if (!this.model) return;
     
     // Move the NPC
+    const oldPosition = this.position.clone();
     this.position.add(this.moveDirection.clone().multiplyScalar(this.moveSpeed));
+    
+    // Adjust to terrain height
+    this.adjustToTerrainHeight();
+    
+    // Update model position
     this.model.position.copy(this.position);
     
     // Make NPC look in the direction of movement
     if (this.moveDirection.length() > 0) {
+      // Create a look target that follows terrain height
       const lookTarget = this.position.clone().add(this.moveDirection);
-      this.model.lookAt(lookTarget);
+      
+      // Set raycaster position above the look target
+      this.raycaster.ray.origin.set(
+        lookTarget.x,
+        10, // Start from high above
+        lookTarget.z
+      );
+      
+      // Find ground objects to check for height
+      const groundObjects = this.scene.children.filter(child => 
+        child instanceof THREE.Mesh && 
+        child.geometry instanceof THREE.PlaneGeometry
+      );
+      
+      // Cast ray downward to find terrain height at look target
+      const intersects = this.raycaster.intersectObjects(groundObjects);
+      
+      if (intersects.length > 0) {
+        // Adjust look target y-position to terrain height
+        lookTarget.y = intersects[0].point.y;
+      }
+      
+      // Make NPC look at the adjusted target
+      const lookDirection = new THREE.Vector3().subVectors(lookTarget, this.position);
+      
+      // Only adjust rotation if we're actually moving
+      if (lookDirection.length() > 0.01) {
+        // Create a matrix to represent the rotation
+        const matrix = new THREE.Matrix4();
+        matrix.lookAt(this.position, lookTarget, new THREE.Vector3(0, 1, 0));
+        
+        // Extract rotation from matrix and apply to model
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromRotationMatrix(matrix);
+        this.model.quaternion.copy(quaternion);
+        
+        // Adjust model rotation to keep it upright
+        this.model.rotation.x = 0;
+        this.model.rotation.z = 0;
+      }
     }
     
     // Change direction randomly or when approaching boundaries
@@ -157,6 +276,27 @@ export class NPC {
     if (this.position.x < -15) this.position.x = -15;
     if (this.position.z > 15) this.position.z = 15;
     if (this.position.z < -15) this.position.z = -15;
+    
+    // Add some walking animation
+    if (this.model.children.length >= 6) {
+      // Get leg meshes
+      const leftLeg = this.model.children[4] as THREE.Mesh;
+      const rightLeg = this.model.children[5] as THREE.Mesh;
+      
+      // Simple walking animation
+      const walkSpeed = 5;
+      const walkAmplitude = 0.2;
+      
+      leftLeg.rotation.x = Math.sin(Date.now() * 0.01 * walkSpeed) * walkAmplitude;
+      rightLeg.rotation.x = Math.sin(Date.now() * 0.01 * walkSpeed + Math.PI) * walkAmplitude;
+      
+      // Arm swing animation
+      const leftArm = this.model.children[2] as THREE.Mesh;
+      const rightArm = this.model.children[3] as THREE.Mesh;
+      
+      leftArm.rotation.x = Math.sin(Date.now() * 0.01 * walkSpeed + Math.PI) * walkAmplitude * 0.5;
+      rightArm.rotation.x = Math.sin(Date.now() * 0.01 * walkSpeed) * walkAmplitude * 0.5;
+    }
   }
   
   getColored(hitPoint?: THREE.Vector3): void {

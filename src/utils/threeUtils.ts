@@ -1,13 +1,25 @@
-
 import * as THREE from 'three';
 
 export const createScene = (): THREE.Scene => {
+  console.log("Creating scene");
+  
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb); // Light blue sky
+  
+  // Add basic lighting directly to the scene during creation
+  // This ensures we always have some light
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+  
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(1, 10, 1);
+  directionalLight.castShadow = true;
+  scene.add(directionalLight);
   
   // Add fog for depth
   scene.fog = new THREE.FogExp2(0x87ceeb, 0.01);
   
+  console.log("Scene created with basic lighting");
   return scene;
 };
 
@@ -26,24 +38,41 @@ export const createCamera = (): THREE.PerspectiveCamera => {
 };
 
 export const createRenderer = (container: HTMLDivElement): THREE.WebGLRenderer => {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
+  console.log("Creating renderer, container:", container);
   
-  // Enable shadows
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  
-  // Clear any existing canvas before adding new one
-  while (container.firstChild) {
-    container.removeChild(container.firstChild);
+  try {
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true // Allow transparency
+    });
+    
+    console.log("WebGLRenderer created successfully");
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Enable shadows
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    // Clear any existing canvas before adding new one
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+    
+    container.appendChild(renderer.domElement);
+    
+    console.log("Renderer canvas added to container");
+    
+    // Verify the canvas is added correctly
+    const canvasElements = container.getElementsByTagName('canvas');
+    console.log(`Canvas elements in container: ${canvasElements.length}`);
+    
+    return renderer;
+  } catch (error) {
+    console.error("Error creating renderer:", error);
+    throw error;
   }
-  
-  container.appendChild(renderer.domElement);
-  
-  console.log("Renderer created and added to container");
-  
-  return renderer;
 };
 
 export const createFloor = (scene: THREE.Scene): void => {

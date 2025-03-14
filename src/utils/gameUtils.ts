@@ -222,11 +222,12 @@ const createWaterTub = (): THREE.Group => {
   return tub;
 };
 
-// Create water tubs/tanks and return their references
+// For the createWaterTubs function, let's simplify it to make sure it works
 export const createWaterTubs = (scene: THREE.Scene, count: number): THREE.Group[] => {
+  console.log("Creating water tubs:", count);
   const tubs: THREE.Group[] = [];
   
-  // Create tubs at more intentional, evenly distributed positions
+  // Create tubs at fixed positions to make sure they appear
   const positions = [
     { x: 8, z: 8 },    // Northeast
     { x: -8, z: 8 },   // Northwest
@@ -236,64 +237,68 @@ export const createWaterTubs = (scene: THREE.Scene, count: number): THREE.Group[
   ];
   
   for (let i = 0; i < count && i < positions.length; i++) {
-    const tub = createWaterTub();
+    const tub = new THREE.Group();
+    tub.name = `WaterTub_${i}`;
     
-    // Add some visual enhancement to make tubs more noticeable
+    // Simple cylinder for the tub
+    const tubGeometry = new THREE.CylinderGeometry(0.7, 0.5, 0.8, 16);
+    const tubMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x3366ff,
+    });
     
-    // Add a glowing ring on the ground around the tub
-    const ringGeometry = new THREE.RingGeometry(1.2, 1.5, 32);
-    const ringMaterial = new THREE.MeshBasicMaterial({
+    const tubMesh = new THREE.Mesh(tubGeometry, tubMaterial);
+    tubMesh.position.y = 0.4;
+    tubMesh.castShadow = true;
+    tub.add(tubMesh);
+    
+    // Simple disc for water surface
+    const waterGeometry = new THREE.CircleGeometry(0.65, 16);
+    const waterMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x33ccff,
-      transparent: true,
-      opacity: 0.5,
       side: THREE.DoubleSide
     });
     
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.01;
-    tub.add(ring);
+    const water = new THREE.Mesh(waterGeometry, waterMaterial);
+    water.position.y = 0.75;
+    water.rotation.x = -Math.PI / 2;
+    tub.add(water);
     
-    // Make water surface pulse to draw attention
-    (tub.children[1] as THREE.Mesh).userData.initialY = tub.children[1].position.y;
-    (tub.children[1] as THREE.Mesh).userData.pulseSpeed = 0.001 + Math.random() * 0.001;
-    (tub.children[1] as THREE.Mesh).userData.pulseTime = Math.random() * Math.PI * 2;
-    
-    // Animation function to make water surface pulse
-    const animateWaterSurface = () => {
-      const water = tub.children[1] as THREE.Mesh;
-      water.userData.pulseTime += water.userData.pulseSpeed;
-      water.position.y = water.userData.initialY + Math.sin(water.userData.pulseTime) * 0.05;
-      
-      requestAnimationFrame(animateWaterSurface);
-    };
-    
-    animateWaterSurface();
-    
-    // Position tub
-    const pos = positions[i];
-    tub.position.set(pos.x, 0, pos.z);
+    // Position the tub
+    tub.position.set(
+      positions[i].x,
+      0,
+      positions[i].z
+    );
     
     scene.add(tub);
     tubs.push(tub);
+    console.log(`Added water tub at (${positions[i].x}, 0, ${positions[i].z})`);
   }
   
   return tubs;
 };
 
-// Create NPCs for the game
+// Simplify the createNPCs function to make sure they are created properly
 export const createNPCs = (scene: THREE.Scene, count: number): NPC[] => {
+  console.log("Creating NPCs:", count);
   const npcs: NPC[] = [];
+  
+  // Create NPCs at specific positions in a grid
+  const gridSize = Math.ceil(Math.sqrt(count));
+  const spacing = 3;
   
   for (let i = 0; i < count; i++) {
     const npc = new NPC(scene);
     
-    // Set random position
-    npc.setPosition(
-      Math.random() * 20 - 10,
-      0,
-      Math.random() * 20 - 10
-    );
+    // Position in a grid formation
+    const row = Math.floor(i / gridSize);
+    const col = i % gridSize;
+    
+    const x = (col - gridSize/2) * spacing;
+    const z = (row - gridSize/2) * spacing;
+    
+    npc.setPosition(x, 0, z);
+    console.log(`Created NPC at position (${x}, 0, ${z})`);
     
     npcs.push(npc);
   }
