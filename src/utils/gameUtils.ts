@@ -88,9 +88,10 @@ const addDecorations = (scene: THREE.Scene): void => {
   // Create colorful banners and flags
   for (let i = 0; i < 20; i++) {
     const banner = createBanner();
+    // Position banners on the ground
     banner.position.set(
       Math.random() * 30 - 15,
-      Math.random() * 3 + 2,
+      0, // Position at ground level
       Math.random() * 30 - 15
     );
     scene.add(banner);
@@ -116,7 +117,8 @@ const createBanner = (): THREE.Group => {
   const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 4, 8);
   const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
   const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-  pole.position.y = 2;
+  // Position pole so it stands on the ground
+  pole.position.y = 2; // Half height of the pole
   pole.castShadow = true;
   banner.add(pole);
   
@@ -129,6 +131,7 @@ const createBanner = (): THREE.Group => {
   });
   
   const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+  // Position flag at the top of the pole
   flag.position.set(0.5, 3.5, 0);
   banner.add(flag);
   

@@ -27,38 +27,46 @@ const HoliGame: React.FC = () => {
   useEffect(() => {
     if (isLoading || !containerRef.current) return;
     
-    const { scene, camera, renderer } = initThreeJS();
+    console.log("Initializing Three.js");
     
-    setupGame(scene, camera);
-    
-    const animate = () => {
-      animationFrameRef.current = requestAnimationFrame(animate);
-      updateGame();
-      renderer.render(scene, camera);
-    };
-    
-    animate();
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('click', handleShoot);
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      if (rendererRef.current) {
-        rendererRef.current.dispose();
-        containerRef.current?.removeChild(rendererRef.current.domElement);
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+    try {
+      const { scene, camera, renderer } = initThreeJS();
       
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('click', handleShoot);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isLoading]);
+      setupGame(scene, camera);
+      
+      const animate = () => {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        updateGame();
+        renderer.render(scene, camera);
+      };
+      
+      animate();
+      
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+      window.addEventListener('click', handleShoot);
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        console.log("Cleaning up Three.js resources");
+        if (rendererRef.current && containerRef.current) {
+          containerRef.current.removeChild(rendererRef.current.domElement);
+          rendererRef.current.dispose();
+        }
+        
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+        
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+        window.removeEventListener('click', handleShoot);
+        window.removeEventListener('resize', handleResize);
+      };
+    } catch (error) {
+      console.error("Error initializing Three.js:", error);
+    }
+  }, [isLoading, gameStarted]);
   
   const handleLoadingComplete = () => {
     console.log("Loading complete!");
@@ -90,7 +98,14 @@ const HoliGame: React.FC = () => {
   
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!gameStarted) return;
+    
+    console.log(`Key pressed: ${event.key}`);
+    
     keysPressed.current[event.key.toLowerCase()] = true;
+    
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'q', 'e'].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+    }
   };
   
   const handleKeyUp = (event: KeyboardEvent) => {
@@ -108,6 +123,9 @@ const HoliGame: React.FC = () => {
     if (cameraRef.current && gameStarted) {
       const camera = cameraRef.current;
       
+      console.log(`Camera position: ${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)}`);
+      console.log(`Keys pressed:`, keysPressed.current);
+      
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
       forward.y = 0;
       forward.normalize();
@@ -116,24 +134,36 @@ const HoliGame: React.FC = () => {
       right.y = 0;
       right.normalize();
       
+      let moved = false;
+      
       if (keysPressed.current['w'] || keysPressed.current['arrowup']) {
-        camera.position.add(forward.multiplyScalar(moveSpeed));
+        camera.position.add(forward.clone().multiplyScalar(moveSpeed));
+        moved = true;
       }
       if (keysPressed.current['s'] || keysPressed.current['arrowdown']) {
-        camera.position.add(forward.multiplyScalar(-moveSpeed));
+        camera.position.add(forward.clone().multiplyScalar(-moveSpeed));
+        moved = true;
       }
       if (keysPressed.current['a'] || keysPressed.current['arrowleft']) {
-        camera.position.add(right.multiplyScalar(-moveSpeed));
+        camera.position.add(right.clone().multiplyScalar(-moveSpeed));
+        moved = true;
       }
       if (keysPressed.current['d'] || keysPressed.current['arrowright']) {
-        camera.position.add(right.multiplyScalar(moveSpeed));
+        camera.position.add(right.clone().multiplyScalar(moveSpeed));
+        moved = true;
       }
       
       if (keysPressed.current['q']) {
         camera.rotation.y += rotateSpeed;
+        moved = true;
       }
       if (keysPressed.current['e']) {
         camera.rotation.y -= rotateSpeed;
+        moved = true;
+      }
+      
+      if (moved) {
+        console.log("Movement detected!");
       }
       
       camera.position.x = Math.max(-15, Math.min(15, camera.position.x));
@@ -182,7 +212,7 @@ const HoliGame: React.FC = () => {
             let parent = intersect.object;
             while (parent) {
               if (parent === npc.model) return true;
-              parent = parent.parent;
+              parent = parent.parent as THREE.Object3D;
             }
             return false;
           })
