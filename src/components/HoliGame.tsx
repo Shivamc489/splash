@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createScene, createCamera, createRenderer } from '../utils/threeUtils';
@@ -38,11 +37,6 @@ const HoliGame: React.FC = () => {
     
     animate();
     
-    // Simulate loading time
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-    
     // Cleanup on unmount
     return () => {
       if (rendererRef.current) {
@@ -51,6 +45,11 @@ const HoliGame: React.FC = () => {
       }
     };
   }, []);
+  
+  const handleLoadingComplete = () => {
+    console.log("Loading complete!");
+    setIsLoading(false);
+  };
   
   const initThreeJS = () => {
     const scene = createScene();
@@ -190,7 +189,7 @@ const HoliGame: React.FC = () => {
   return (
     <div className="relative w-full h-screen">
       {isLoading ? (
-        <LoadingScreen />
+        <LoadingScreen onLoadingComplete={handleLoadingComplete} />
       ) : (
         <>
           <div ref={containerRef} className="w-full h-full" />
