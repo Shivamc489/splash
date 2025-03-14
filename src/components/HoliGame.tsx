@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createScene, createCamera, createRenderer } from '../utils/threeUtils';
@@ -21,16 +20,17 @@ const HoliGame: React.FC = () => {
   const waterGunRef = useRef<THREE.Group | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
+  const keysPressed = useRef<{ [key: string]: boolean }>({});
+  const moveSpeed = 0.15;
+  const rotateSpeed = 0.03;
+  
   useEffect(() => {
     if (isLoading || !containerRef.current) return;
     
-    // Initialize Three.js components
     const { scene, camera, renderer } = initThreeJS();
     
-    // Setup the game elements
     setupGame(scene, camera);
     
-    // Start animation loop
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
       updateGame();
@@ -39,7 +39,11 @@ const HoliGame: React.FC = () => {
     
     animate();
     
-    // Cleanup on unmount
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('click', handleShoot);
+    window.addEventListener('resize', handleResize);
+    
     return () => {
       if (rendererRef.current) {
         rendererRef.current.dispose();
@@ -49,11 +53,12 @@ const HoliGame: React.FC = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
       
-      // Remove event listeners
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('click', handleShoot);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [isLoading]); // Re-run when isLoading changes
+  }, [isLoading]);
   
   const handleLoadingComplete = () => {
     console.log("Loading complete!");
@@ -81,21 +86,60 @@ const HoliGame: React.FC = () => {
     npcsRef.current = createNPCs(scene, 5);
     waterGunRef.current = createWaterGun(scene, camera);
     createWaterBalloons(scene, 10);
-    
-    // Add event listeners
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('click', handleShoot);
+  };
+  
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (!gameStarted) return;
+    keysPressed.current[event.key.toLowerCase()] = true;
+  };
+  
+  const handleKeyUp = (event: KeyboardEvent) => {
+    if (!gameStarted) return;
+    keysPressed.current[event.key.toLowerCase()] = false;
   };
   
   const updateGame = () => {
-    // Update NPCs movements and behaviors
     if (npcsRef.current) {
       npcsRef.current.forEach(npc => {
         npc.update();
       });
     }
     
-    // Update water gun position with camera
+    if (cameraRef.current && gameStarted) {
+      const camera = cameraRef.current;
+      
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      forward.y = 0;
+      forward.normalize();
+      
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      right.y = 0;
+      right.normalize();
+      
+      if (keysPressed.current['w'] || keysPressed.current['arrowup']) {
+        camera.position.add(forward.multiplyScalar(moveSpeed));
+      }
+      if (keysPressed.current['s'] || keysPressed.current['arrowdown']) {
+        camera.position.add(forward.multiplyScalar(-moveSpeed));
+      }
+      if (keysPressed.current['a'] || keysPressed.current['arrowleft']) {
+        camera.position.add(right.multiplyScalar(-moveSpeed));
+      }
+      if (keysPressed.current['d'] || keysPressed.current['arrowright']) {
+        camera.position.add(right.multiplyScalar(moveSpeed));
+      }
+      
+      if (keysPressed.current['q']) {
+        camera.rotation.y += rotateSpeed;
+      }
+      if (keysPressed.current['e']) {
+        camera.rotation.y -= rotateSpeed;
+      }
+      
+      camera.position.x = Math.max(-15, Math.min(15, camera.position.x));
+      camera.position.z = Math.max(-15, Math.min(15, camera.position.z));
+    }
+    
     if (waterGunRef.current && cameraRef.current) {
       waterGunRef.current.position.copy(cameraRef.current.position);
       waterGunRef.current.rotation.copy(cameraRef.current.rotation);
@@ -116,10 +160,10 @@ const HoliGame: React.FC = () => {
   const handleShoot = (event: MouseEvent) => {
     if (!gameStarted || waterLevel <= 0) return;
     
-    // Calculate water consumption
+    console.log("Shooting!");
+    
     setWaterLevel(prev => Math.max(0, prev - 5));
     
-    // Check if hit any NPC
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(
       (event.clientX / window.innerWidth) * 2 - 1,
@@ -130,18 +174,26 @@ const HoliGame: React.FC = () => {
       raycaster.setFromCamera(mouse, cameraRef.current);
       const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
       
+      console.log("Intersections found:", intersects.length);
+      
       if (intersects.length > 0) {
-        // Determine if the hit object is an NPC
         const hitNPC = npcsRef.current.find(npc => 
-          npc.model && intersects.some(intersect => intersect.object.parent === npc.model)
+          npc.model && intersects.some(intersect => {
+            let parent = intersect.object;
+            while (parent) {
+              if (parent === npc.model) return true;
+              parent = parent.parent;
+            }
+            return false;
+          })
         );
         
         if (hitNPC) {
+          console.log("Hit an NPC!");
           hitNPC.getColored();
           setScore(prev => prev + 10);
         }
         
-        // Create splash effect at the intersection point
         createSplashEffect(intersects[0].point);
       }
     }
@@ -150,7 +202,8 @@ const HoliGame: React.FC = () => {
   const createSplashEffect = (position: THREE.Vector3) => {
     if (!sceneRef.current) return;
     
-    // Create colorful particles at the hit position
+    console.log("Creating splash at", position);
+    
     const particles = new THREE.Group();
     const colors = [0xff00ff, 0x00ffff, 0xffff00, 0xff0000, 0x00ff00, 0x0000ff];
     
@@ -163,7 +216,6 @@ const HoliGame: React.FC = () => {
       const particle = new THREE.Mesh(geometry, material);
       particle.position.copy(position);
       
-      // Add random velocity
       (particle as any).velocity = new THREE.Vector3(
         Math.random() * 0.1 - 0.05,
         Math.random() * 0.1,
@@ -175,11 +227,10 @@ const HoliGame: React.FC = () => {
     
     sceneRef.current.add(particles);
     
-    // Animate and remove after a short time
     const animateParticles = () => {
       particles.children.forEach(particle => {
         particle.position.add((particle as any).velocity);
-        (particle as any).velocity.y -= 0.001; // gravity
+        (particle as any).velocity.y -= 0.001;
       });
     };
     
@@ -213,6 +264,13 @@ const HoliGame: React.FC = () => {
             onStart={startGame}
             onRefill={refillWater}
           />
+          {gameStarted && (
+            <div className="absolute bottom-20 left-4 p-2 rounded-lg backdrop-blur-md bg-white/10 border border-white/20">
+              <p className="text-sm font-medium text-white">
+                Controls: WASD to move, Q/E to rotate, Click to shoot
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>
