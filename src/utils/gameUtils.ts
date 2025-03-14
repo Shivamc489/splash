@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { NPC } from '../models/gameModels';
 
@@ -122,18 +121,49 @@ const createBanner = (): THREE.Group => {
   pole.castShadow = true;
   banner.add(pole);
   
-  // Flag
+  // Flag - these decorative flags are inspired by traditional Holi festival decorations
+  // They serve multiple purposes:
+  // 1. Visual aesthetics - adding color and festivity to the game environment
+  // 2. Cultural context - representing the celebratory atmosphere of Holi
+  // 3. Game landmarks - helping players navigate the game space
+  // 4. Immersion - enhancing the feeling of being at a Holi festival
   const colors = [0xff3366, 0x33ff66, 0x6633ff, 0xffff33, 0x33ffff, 0xff33ff];
-  const flagGeometry = new THREE.PlaneGeometry(1, 0.6);
-  const flagMaterial = new THREE.MeshBasicMaterial({ 
-    color: colors[Math.floor(Math.random() * colors.length)],
-    side: THREE.DoubleSide
-  });
   
-  const flag = new THREE.Mesh(flagGeometry, flagMaterial);
-  // Position flag at the top of the pole
-  flag.position.set(0.5, 3.5, 0);
-  banner.add(flag);
+  // Create a more elaborate flag with multiple colored sections
+  const sections = Math.floor(Math.random() * 2) + 2; // 2-3 sections
+  
+  for (let i = 0; i < sections; i++) {
+    const flagGeometry = new THREE.PlaneGeometry(1, 0.6 / sections);
+    const flagMaterial = new THREE.MeshBasicMaterial({ 
+      color: colors[Math.floor(Math.random() * colors.length)],
+      side: THREE.DoubleSide
+    });
+    
+    const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+    // Position each section above the previous one
+    flag.position.set(0.5, 3.5 - (i * 0.6 / sections), 0);
+    banner.add(flag);
+  }
+  
+  // Add some decorative elements to the banner
+  const decorations = Math.floor(Math.random() * 3) + 1; // 1-3 decorations
+  
+  for (let i = 0; i < decorations; i++) {
+    const size = 0.1 + Math.random() * 0.1;
+    const decorGeometry = new THREE.SphereGeometry(size, 8, 8);
+    const decorMaterial = new THREE.MeshBasicMaterial({ 
+      color: colors[Math.floor(Math.random() * colors.length)],
+    });
+    
+    const decoration = new THREE.Mesh(decorGeometry, decorMaterial);
+    // Position decorations randomly on the pole
+    decoration.position.set(
+      0, 
+      1 + Math.random() * 2, // Position along the pole
+      0
+    );
+    banner.add(decoration);
+  }
   
   return banner;
 };
@@ -190,6 +220,65 @@ const createWaterTub = (): THREE.Group => {
   }
   
   return tub;
+};
+
+// Create water tubs/tanks and return their references
+export const createWaterTubs = (scene: THREE.Scene, count: number): THREE.Group[] => {
+  const tubs: THREE.Group[] = [];
+  
+  // Create tubs at more intentional, evenly distributed positions
+  const positions = [
+    { x: 8, z: 8 },    // Northeast
+    { x: -8, z: 8 },   // Northwest
+    { x: -8, z: -8 },  // Southwest
+    { x: 8, z: -8 },   // Southeast
+    { x: 0, z: 0 }     // Center
+  ];
+  
+  for (let i = 0; i < count && i < positions.length; i++) {
+    const tub = createWaterTub();
+    
+    // Add some visual enhancement to make tubs more noticeable
+    
+    // Add a glowing ring on the ground around the tub
+    const ringGeometry = new THREE.RingGeometry(1.2, 1.5, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0x33ccff,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide
+    });
+    
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.01;
+    tub.add(ring);
+    
+    // Make water surface pulse to draw attention
+    (tub.children[1] as THREE.Mesh).userData.initialY = tub.children[1].position.y;
+    (tub.children[1] as THREE.Mesh).userData.pulseSpeed = 0.001 + Math.random() * 0.001;
+    (tub.children[1] as THREE.Mesh).userData.pulseTime = Math.random() * Math.PI * 2;
+    
+    // Animation function to make water surface pulse
+    const animateWaterSurface = () => {
+      const water = tub.children[1] as THREE.Mesh;
+      water.userData.pulseTime += water.userData.pulseSpeed;
+      water.position.y = water.userData.initialY + Math.sin(water.userData.pulseTime) * 0.05;
+      
+      requestAnimationFrame(animateWaterSurface);
+    };
+    
+    animateWaterSurface();
+    
+    // Position tub
+    const pos = positions[i];
+    tub.position.set(pos.x, 0, pos.z);
+    
+    scene.add(tub);
+    tubs.push(tub);
+  }
+  
+  return tubs;
 };
 
 // Create NPCs for the game

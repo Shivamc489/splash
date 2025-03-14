@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -9,15 +8,13 @@ interface GameUIProps {
   waterLevel: number;
   gameStarted: boolean;
   onStart: () => void;
-  onRefill: () => void;
 }
 
 const GameUI: React.FC<GameUIProps> = ({ 
   score, 
   waterLevel, 
   gameStarted, 
-  onStart, 
-  onRefill 
+  onStart 
 }) => {
   return (
     <div className={`absolute inset-0 ${gameStarted ? 'pointer-events-none' : ''}`}>
@@ -30,7 +27,10 @@ const GameUI: React.FC<GameUIProps> = ({
               </h1>
               <p className="text-center">Celebrate Holi by splashing colors on NPCs!</p>
               <p className="text-center text-sm">
-                Use WASD to move, Q/E to rotate, and click to shoot color!
+                Use WASD to move, mouse to aim, and click to shoot color!
+              </p>
+              <p className="text-center text-sm text-white/70">
+                Find water tanks and hold R to refill your water gun.
               </p>
               <Button onClick={onStart} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-purple-500 hover:to-pink-500">
                 Start Game
@@ -48,17 +48,12 @@ const GameUI: React.FC<GameUIProps> = ({
           {/* Water level */}
           <div className="absolute bottom-4 left-4 right-4 p-4 rounded-lg backdrop-blur-md bg-white/10 border border-white/20">
             <div className="flex items-center gap-4">
+              <div className="text-white font-medium">Water:</div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-white mb-1">Water Level</p>
-                <Progress value={waterLevel} className="h-3" />
+                <Progress value={waterLevel} className="h-2 bg-white/20" 
+                  style={{'--progress-fill': waterLevel < 20 ? 'rgb(239, 68, 68)' : 'rgb(59, 130, 246)'} as React.CSSProperties} />
               </div>
-              <Button 
-                onClick={onRefill} 
-                className="pointer-events-auto bg-blue-500 hover:bg-blue-600"
-                disabled={waterLevel === 100}
-              >
-                Refill
-              </Button>
+              <div className="text-white font-medium w-12">{waterLevel}%</div>
             </div>
           </div>
         </>
