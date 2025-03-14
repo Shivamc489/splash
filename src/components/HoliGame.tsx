@@ -140,10 +140,25 @@ const HoliGameInternal: React.FC<{ onDebugUpdate?: (scene: THREE.Scene, waterTub
   const isMouseLocked = useRef<boolean>(false);
   const mouseMovement = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
   const mouseSensitivity = 0.002;
+  const trackpadSensitivity = 0.001; // Lower sensitivity for trackpad
   
   // Track pointer lock state
   const handlePointerLockChange = () => {
     isMouseLocked.current = document.pointerLockElement === containerRef.current;
+  };
+  
+  // Helper function to ensure camera orientation is correct with no unwanted roll
+  const resetCameraOrientation = () => {
+    if (!cameraRef.current) return;
+    
+    // Force the camera to use Euler rotations with the correct order
+    cameraRef.current.rotation.order = 'YXZ'; // This order ensures yaw-pitch-roll behavior
+    
+    // Ensure roll is always zero
+    cameraRef.current.rotation.z = 0;
+    
+    // Update the quaternion from the Euler angles
+    cameraRef.current.quaternion.setFromEuler(cameraRef.current.rotation);
   };
   
   // Track mouse movement for camera rotation
@@ -153,12 +168,16 @@ const HoliGameInternal: React.FC<{ onDebugUpdate?: (scene: THREE.Scene, waterTub
       const movementX = event.movementX || 0;
       const movementY = event.movementY || 0;
       
-      // Update camera rotation based on mouse movement - fixing reversed controls
-      cameraRef.current.rotation.y += movementX * mouseSensitivity; // Changed from -= to += to fix reversed horizontal aim
+      // Only update yaw (horizontal) and pitch (vertical) rotations
+      // Horizontal rotation (yaw) - around Y axis
+      cameraRef.current.rotation.y -= movementX * trackpadSensitivity;
       
-      // Limit vertical rotation to prevent flipping
-      const verticalRotation = cameraRef.current.rotation.x + (-movementY * mouseSensitivity); // Negated movementY for proper vertical aim
+      // Vertical rotation (pitch) - around X axis
+      const verticalRotation = cameraRef.current.rotation.x + (-movementY * trackpadSensitivity);
       cameraRef.current.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, verticalRotation));
+      
+      // Reset orientation to prevent any roll
+      resetCameraOrientation();
     }
   };
   
@@ -1037,6 +1056,9 @@ const HoliGameInternal: React.FC<{ onDebugUpdate?: (scene: THREE.Scene, waterTub
     if (cameraRef.current && gameStarted) {
       const camera = cameraRef.current;
       
+      // Ensure camera orientation is correct
+      resetCameraOrientation();
+      
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
       forward.y = 0;
       forward.normalize();
@@ -1377,6 +1399,12 @@ const HoliGameInternal: React.FC<{ onDebugUpdate?: (scene: THREE.Scene, waterTub
       return;
     }
     setGameStarted(true);
+    
+    // Initialize camera rotation order when the game starts
+    if (cameraRef.current) {
+      cameraRef.current.rotation.order = 'YXZ';
+      resetCameraOrientation();
+    }
   };
   
   return (
